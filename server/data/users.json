@@ -1,0 +1,41 @@
+[
+  {
+    "username": "p",
+    "email": "p@g.it",
+    "createdAt": "2026-04-09T21:02:09.254Z"
+  },
+  {
+    "username": "p",
+    "email": "p@p.it",
+    "createdAt": "2026-04-09T21:02:46.266Z"
+  },
+  {
+    "username": "c",
+    "email": "c@g.it",
+    "createdAt": "2026-04-09T21:03:55.889Z"
+  },
+  {
+    "username": "c",
+    "email": "c@f.it",
+    "createdAt": "2026-04-09T21:04:16.009Z"
+  },
+  {
+    "username": "pippo",
+    "email": "p@gmail.com",
+    "createdAt": "2026-04-09T21:26:45.871Z"
+  },
+  {
+    "firstName": "g",
+    "lastName": "g",
+    "nickname": "g",
+    "email": "g@g.it",
+    "createdAt": "2026-04-10T08:04:22.129Z"
+  },
+  {
+    "firstName": "g",
+    "lastName": "g",
+    "nickname": "g",
+    "email": "g@g.i",
+    "createdAt": "2026-04-09T21:42:13.944Z"
+  }
+]
