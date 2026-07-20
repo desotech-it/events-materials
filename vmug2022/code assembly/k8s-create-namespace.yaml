@@ -1,0 +1,37 @@
+formatVersion: 1
+inputs:
+  ns-name:
+    type: string
+    title: Insert the name of Namespace
+resources:
+  Cloud_SV_Namespace_1:
+    type: Cloud.SV.Namespace
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      constraints:
+        - tag: env:kubernetes
+      name: ${input.ns-name}
+      storage:
+        - profile:
+            constraints:
+              - tag: tanzu:fast
+      vm_classes:
+        - name: best-effort-2xlarge
+        - name: best-effort-4xlarge
+        - name: best-effort-8xlarge
+        - name: best-effort-large
+        - name: best-effort-medium
+        - name: best-effort-small
+        - name: best-effort-xlarge
+        - name: best-effort-xsmall
+        - name: guaranteed-2xlarge
+        - name: guaranteed-4xlarge
+        - name: guaranteed-8xlarge
+        - name: guaranteed-large
+        - name: guaranteed-medium
+        - name: guaranteed-small
+        - name: guaranteed-xlarge
+        - name: guaranteed-xsmall

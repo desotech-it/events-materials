@@ -1,0 +1,34 @@
+formatVersion: 1
+inputs:
+  nomeCluster:
+    type: string
+    title: Inserisci il nome del cluster
+  ns-name:
+    type: string
+    title: Insert the namespace
+  planName:
+    type: string
+    title: Insert the plan
+    default: developer-1-1-be-small
+    enum:
+      - developer-1-1-be-small
+      - production-1-1-be-small
+  workerNode:
+    type: number
+    title: Inserisci il numero dei worker (da 1 a 10)
+    default: 1
+    minimum: 1
+    maximum: 10
+resources:
+  Cloud_Tanzu_Cluster_1:
+    type: Cloud.Tanzu.Cluster
+    metadata:
+      layoutPosition:
+        - 0
+        - 0
+    properties:
+      name: ${input.nomeCluster}
+      plan: ${input.planName}
+      workers: ${input.workerNode}
+      constraints:
+        - tag: ${"namespace:" + input.ns-name}

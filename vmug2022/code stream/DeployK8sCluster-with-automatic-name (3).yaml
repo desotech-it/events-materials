@@ -1,0 +1,511 @@
+---
+project: kubernetes-test
+kind: PIPELINE
+name: DeployK8sCluster-with-automatic-name
+icon: organization,left, is-info is-solid
+enabled: true
+description: Deploys a Tanzu cluster in a supervisor namespace
+concurrency: 10
+input:
+  add_to_ca: 'NO'
+  add_to_cs: 'YES'
+  namespace-blueprint-name: Cloud_SV_Namespace_1
+  plan: developer-1-1-be-small
+  Project: kubernetes-test
+  replicas-nodepool: '1'
+  super_ns_cluster: IBM
+_inputMeta:
+  add_to_ca:
+    description: Add as Cloud Assembly Endpoint (YES or NO)
+    mandatory: false
+  Project:
+    description: Project name Endpoints should be added to
+    mandatory: true
+  add_to_cs:
+    description: Add as Code Stream Endpoint (YES or NO)
+    mandatory: true
+  namespace-blueprint-name:
+    description: Nome della risorsa per la creazione del namespace
+    mandatory: false
+  replicas-nodepool:
+    description: Insert number of worker node
+    mandatory: true
+  plan:
+    description: Insert the Cluster Plan
+    mandatory: true
+  super_ns_cluster:
+    description: vSphere Cluster with Supervisor enabled
+    mandatory: false
+output:
+  APISERVER: ${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.APISERVER}
+  ClusterCACertificate: ${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.ClusterCACertificate}
+  FINGERPRINT: ${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.FINGERPRINT}
+  TOKEN: ${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.TOKEN}
+workspace:
+  type: K8S
+  endpoint: vra-stage-kubernetes
+  image: r.deso.tech/dsk/dstanzu:latest
+  registry: ''
+  path: ''
+  autoCloneForTrigger: false
+  limits:
+    memory: 512
+    cpu: 1.0
+  customProperties:
+    proxyType: nodePort
+    namespace: desotech-codestream
+stageOrder:
+- stage-get-vra-token
+- stage-supervisor-namespace
+- stage-get-variables
+- stage-create-tkgs
+- stage-configure-tkgs
+- stage-Integration-to-vRA
+stages:
+  stage-supervisor-namespace:
+    taskOrder:
+    - task-create-supervisor-namespace-from-blueprint
+    tasks:
+      task-create-supervisor-namespace-from-blueprint:
+        type: Blueprint
+        input:
+          action: CreateDeployment
+          deploymentName: ${requestBy}-${stage-get-vra-token.task-generate-random-name.output.exports.namespaceName}
+          blueprint: k8s-create-namespace
+          version: '5'
+          parameters:
+            ns-name: ${stage-get-vra-token.task-generate-random-name.output.exports.namespaceName}
+  stage-create-tkgs:
+    taskOrder:
+    - Create-tkgs-from-Blueprint
+    - Create Login Script to Supervisor Cluster,Read-CI-tkgs-name
+    tasks:
+      Create-tkgs-from-Blueprint:
+        type: Blueprint
+        ignoreFailure: true
+        input:
+          action: CreateDeployment
+          deploymentName: ${requestBy}-${stage-get-vra-token.task-generate-random-name.output.exports.tkgsName}
+          blueprint: k8s-tanzu.cluster
+          version: '6'
+          parameters:
+            workerNode: ${input.replicas-nodepool}
+            planName: ${input.plan}
+            nomeCluster: ${stage-get-vra-token.task-generate-random-name.output.exports.tkgsName}
+            ns-name: ${stage-get-vra-token.task-generate-random-name.output.exports.namespaceName}
+      Create Login Script to Supervisor Cluster:
+        type: CI
+        input:
+          steps:
+          - '# Download the vSphere Kubectl Plugin'
+          - wget --no-check-certificate https://${stage-supervisor-namespace.task-create-supervisor-namespace-from-blueprint.output.deploymentDetails.resources.Cloud_SV_Namespace_1.address}/wcp/plugin/linux-amd64/vsphere-plugin.zip
+          - '# Extract the plugin'
+          - unzip vsphere-plugin.zip
+          - '# Install the plugin'
+          - mv -f bin/* /usr/bin/
+          - ''
+          - tee expect.sh > /dev/null << EOF
+          - '#!/usr/bin/expect -f'
+          - set timeout -1
+          - spawn kubectl vsphere login --server ${stage-supervisor-namespace.task-create-supervisor-namespace-from-blueprint.output.deploymentDetails.resources.Cloud_SV_Namespace_1.address}
+            --insecure-skip-tls-verify --vsphere-username ${var.vcenter-username}
+          - match_max 100000
+          - expect -exact "\r
+          - 'Password: "'
+          - send -- "${var.vcenter-password}\r"
+          - expect eof
+          - EOF
+          - ''
+          - chmod 777 expect.sh
+          - ''
+          - ''
+          export: [
+            ]
+          artifacts: [
+            ]
+          process: [
+            ]
+      Read-CI-tkgs-name:
+        type: CI
+        input:
+          steps:
+          - '# Read tkgs Name'
+          - export tkgsName=${stage-create-tkgs.Create-tkgs-from-Blueprint.output.deploymentDetails.resources.Cloud_Tanzu_Cluster_1.name}
+          export:
+          - tkgsName
+          artifacts: [
+            ]
+          process: [
+            ]
+  stage-Integration-to-vRA:
+    taskOrder:
+    - task-collect-k8s-cluster-information
+    - task-create-code-stream-k8s-endpoint
+    tasks:
+      task-create-code-stream-k8s-endpoint:
+        type: REST
+        preCondition: ${input.add_to_cs} == "YES"
+        input:
+          action: post
+          url: https://${var.vraFQDN}/pipeline/api/endpoints
+          headers:
+            Accept: application/json
+            Content-Type: application/json
+            Authorization: ${stage-get-vra-token.task-authentication-vra.output.responseHeaders.Authorization}
+          payload: |-
+            {
+               "name":"${stage-get-vra-token.task-generate-random-name.output.exports.tkgsName}",
+               "project":"${input.Project}",
+               "description":"Added from Code Stream",
+               "type":"k8s",
+               "properties":{
+                  "kubernetesURL":"${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.APISERVER}",
+                  "authType":"token",
+                  "token":"${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.TOKEN}",
+                  "fingerprint":"${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.FINGERPRINT}"
+               }
+            }
+      task-collect-k8s-cluster-information:
+        type: CI
+        input:
+          steps:
+          - './connect-cluster.sh '
+          - ''
+          - kubectl config use-context ${stage-get-vra-token.task-generate-random-name.output.exports.tkgsName}
+          - ''
+          - export APISERVER=$(kubectl config view --minify | grep server | cut -f 2- -d ":" | tr -d "
+            ")
+          - APISERVERNOHTTPS=$(echo $APISERVER | cut -c 9-)
+          - FPRINT=$(openssl s_client -connect $APISERVERNOHTTPS < /dev/null 2>/dev/null | openssl x509
+            -fingerprint -sha256 -noout -in /dev/stdin)
+          - export FINGERPRINT=$(echo $FPRINT | cut -c 20-)
+          - TOKENNAME=$(kubectl -n kube-system get serviceaccount/dev-admin -o jsonpath='{.secrets[0].name}')
+          - export TOKEN=$(kubectl -n kube-system get secret $TOKENNAME -o jsonpath='{.data.token}'| base64
+            --decode)
+          - ''
+          - kubectl config view --minify --raw >> kubeconf.yaml
+          - ''
+          - yq eval '.clusters[0].cluster."certificate-authority-data"' kubeconf.yaml
+          - ''
+          - export ClusterCACertificate=$(yq eval '.clusters[0].cluster."certificate-authority-data"'
+            kubeconf.yaml)
+          export:
+          - APISERVER
+          - FINGERPRINT
+          - TOKEN
+          - ClusterCACertificate
+          artifacts: [
+            ]
+          process: [
+            ]
+  stage-configure-tkgs:
+    taskOrder:
+    - task-create-login-script-to-tkgs
+    - task-create-tkgs-serviceaccount
+    - task-create-tkgs-rolebinding
+    - task-create-tkgs-psp
+    tasks:
+      task-create-tkgs-serviceaccount:
+        type: CI
+        input:
+          steps:
+          - './connect-cluster.sh '
+          - ''
+          - kubectl config use-context ${stage-get-vra-token.task-generate-random-name.output.exports.tkgsName}
+          - ''
+          - tee cluster_sa.yaml > /dev/null << EOF
+          - 'apiVersion: v1'
+          - 'kind: ServiceAccount'
+          - 'metadata:'
+          - '  name: dev-admin'
+          - '  namespace: kube-system'
+          - EOF
+          - ''
+          - kubectl apply -f cluster_sa.yaml
+          export: [
+            ]
+          artifacts: [
+            ]
+          process: [
+            ]
+      task-create-tkgs-rolebinding:
+        type: CI
+        input:
+          steps:
+          - './connect-cluster.sh  '
+          - ''
+          - kubectl config use-context ${stage-get-vra-token.task-generate-random-name.output.exports.tkgsName}
+          - ''
+          - tee svc-rbac.yaml > /dev/null << EOF
+          - 'apiVersion: rbac.authorization.k8s.io/v1'
+          - 'kind: ClusterRoleBinding'
+          - 'metadata:'
+          - '  name: dev-admin'
+          - 'roleRef:'
+          - '  apiGroup: rbac.authorization.k8s.io'
+          - '  kind: ClusterRole'
+          - '  name: cluster-admin'
+          - 'subjects:'
+          - '  - kind: ServiceAccount'
+          - '    name: dev-admin'
+          - '    namespace: kube-system'
+          - EOF
+          - ''
+          - kubectl apply -f svc-rbac.yaml
+          export: [
+            ]
+          artifacts: [
+            ]
+          process: [
+            ]
+      task-create-login-script-to-tkgs:
+        type: CI
+        input:
+          steps:
+          - tee connect-cluster.sh > /dev/null << EOF
+          - '#!/usr/bin/expect -f'
+          - set timeout -1
+          - '#KUBECTL_VSPHERE_PASSWORD=${var.vcenter-password}'
+          - spawn kubectl vsphere login --server ${stage-supervisor-namespace.task-create-supervisor-namespace-from-blueprint.output.deploymentDetails.resources.Cloud_SV_Namespace_1.address}
+            --insecure-skip-tls-verify --vsphere-username ${var.vcenter-username} --tanzu-kubernetes-cluster-name
+            ${stage-get-vra-token.task-generate-random-name.output.exports.tkgsName} --tanzu-kubernetes-cluster-namespace
+            ${stage-get-vra-token.task-generate-random-name.output.exports.namespaceName}
+          - ''
+          - match_max 100000
+          - expect -exact "\r
+          - 'Password: "'
+          - send -- "${var.vcenter-password}\r"
+          - expect eof
+          - EOF
+          - ''
+          - pwd
+          - ''
+          - 'chmod 777 connect-cluster.sh '
+          export: [
+            ]
+          artifacts: [
+            ]
+          process: [
+            ]
+      task-create-tkgs-psp:
+        type: CI
+        input:
+          steps:
+          - './connect-cluster.sh '
+          - ''
+          - kubectl config use-context ${stage-get-vra-token.task-generate-random-name.output.exports.tkgsName}
+          - ''
+          - ''
+          - '# Disable just for the sa user dev-admin'
+          - kubectl create clusterrolebinding dev-admin-tkg-admin-privileged-binding --clusterrole=psp:vmware-system-privileged
+            --serviceaccount kube-system:dev-admin
+          - ''
+          - '# Disable just for all authenticated '
+          - ''
+          - kubectl create clusterrolebinding default-tkg-admin-privileged-binding --clusterrole=psp:vmware-system-privileged
+            --group=system:authenticated
+          - ''
+          - ''
+          export: [
+            ]
+          artifacts: [
+            ]
+          process: [
+            ]
+  stage-get-variables:
+    taskOrder:
+    - task-create-tag,task-get-deployments,task-get-supervisor-namespace
+    - task-read-variables
+    - task-create-k8s-zone
+    - task-read-k8s-zone-id,task-add-k8s-zone-to-project
+    tasks:
+      task-add-k8s-zone-to-project:
+        type: REST
+        input:
+          action: put
+          url: https://${var.vraFQDN}/cmx/api/resources/k8s-zones/${stage-get-variables.task-create-k8s-zone.output.responseJson.id}/projects
+          headers:
+            Accept: application/json
+            Content-Type: application/json
+            Authorization: ${stage-get-vra-token.task-authentication-vra.output.responseHeaders.Authorization}
+          payload: |-
+            [
+              {
+                "orgId": "${stage-get-variables.task-read-variables.output.exports.orgID}",
+                "priority": 0,
+                "projectId": "${stage-get-variables.task-get-deployments.output.responseJson.projectId}"
+              }
+            ]
+      task-get-deployments:
+        type: REST
+        input:
+          action: get
+          url: https://${var.vraFQDN}/deployment/api/deployments/${stage-supervisor-namespace.task-create-supervisor-namespace-from-blueprint.output.deploymentId}
+          headers:
+            Accept: application/json
+            Content-Type: application/json
+            Authorization: ${stage-get-vra-token.task-authentication-vra.output.responseHeaders.Authorization}
+          payload: ''
+      task-create-k8s-zone:
+        type: REST
+        input:
+          action: post
+          url: https://${var.vraFQDN}/cmx/api/resources/k8s-zones/
+          headers:
+            Accept: application/json
+            Content-Type: application/json
+            Authorization: ${stage-get-vra-token.task-authentication-vra.output.responseHeaders.Authorization}
+          payload: |2-
+                    {
+                        "orgId": "${stage-get-variables.task-read-variables.output.exports.orgID}",
+                        "name": "k8szone-${stage-get-vra-token.task-generate-random-name.output.exports.namespaceName}",
+                        "description": "",
+                        "providerId": "${var.providerId}",
+                        "providerType": "VSPHERE_NAMESPACES",
+                        "projects": [],
+                        "resources": [],
+                        "clusters": [],
+                        "supervisorClusters": [],
+                        "supervisorNamespaces": [
+                            {
+                                "namespaceSelfLinkId": "${stage-get-variables.task-read-variables.output.exports.namespaceID}",
+                                "tagLinks": ["${stage-get-variables.task-read-variables.output.exports.tagLink}"]
+                            }
+                        ],
+                        "tagLinks": ["${stage-get-variables.task-read-variables.output.exports.tagLink}"]
+                    }
+      task-read-variables:
+        type: CI
+        input:
+          steps:
+          - '# Read id Tag'
+          - export tagLink=${stage-get-variables.task-create-tag.output.responseJson.documentSelfLink}
+          - ''
+          - export orgID=${stage-get-variables.task-get-deployments.output.responseJson.orgId}
+          - ''
+          - export namespaceLink=${stage-supervisor-namespace.task-create-supervisor-namespace-from-blueprint.output.deploymentDetails.resources.Cloud_SV_Namespace_1.id}
+          - ''
+          - export namespaceName=${stage-get-vra-token.task-generate-random-name.output.exports.namespaceName}
+          - ''
+          - export tkgsName=${stage-get-vra-token.task-generate-random-name.output.exports.tkgsName}
+          - ''
+          - export namespaceID=${stage-get-variables.task-get-supervisor-namespace.output.responseJson.selfLinkId}
+          - ''
+          - export projectID=${stage-get-variables.task-get-deployments.output.responseJson.projectId}
+          - ''
+          - ''
+          export:
+          - tagLink
+          - endpointLink
+          - orgID
+          - namespaceID
+          - namespaceLink
+          - projectID
+          - namespaceName
+          - tkgsName
+          artifacts: [
+            ]
+          process: [
+            ]
+      task-get-supervisor-namespace:
+        type: REST
+        input:
+          action: get
+          url: https://${var.vraFQDN}${stage-supervisor-namespace.task-create-supervisor-namespace-from-blueprint.output.deploymentDetails.resources.Cloud_SV_Namespace_1.id}
+          headers:
+            Accept: application/json
+            Content-Type: application/json
+            Authorization: ${stage-get-vra-token.task-authentication-vra.output.responseHeaders.Authorization}
+          payload: ''
+      task-read-k8s-zone-id:
+        type: CI
+        input:
+          steps:
+          - '# Read id Tag'
+          - export k8sZoneID=${stage-get-variables.task-create-k8s-zone.output.responseJson.id}
+          - ''
+          - ''
+          export:
+          - tagLink
+          - endpointLink
+          - orgID
+          - namespaceID
+          - namespaceLink
+          - projectID
+          artifacts: [
+            ]
+          process: [
+            ]
+      task-create-tag:
+        type: REST
+        input:
+          action: post
+          url: https://${var.vraFQDN}/provisioning/uerp/resources/tags?expand
+          headers:
+            Accept: application/json
+            Content-Type: application/json
+            Authorization: ${stage-get-vra-token.task-authentication-vra.output.responseHeaders.Authorization}
+          payload: |
+            {"key":"namespace","value":"${stage-get-vra-token.task-generate-random-name.output.exports.namespaceName}","isSaved":false,"origins":["USER_DEFINED"]}
+  stage-get-vra-token:
+    taskOrder:
+    - task-authentication-vra
+    - task-generate-random-name
+    tasks:
+      task-authentication-vra:
+        type: REST
+        input:
+          action: post
+          url: https://${var.vraFQDN}/csp/gateway/am/idp/auth/login?access_token
+          headers:
+            Accept: application/json
+            Content-Type: application/json
+          payload: |-
+            {
+              "username": "${var.vraUser}",
+              "password": "${var.vraUserPassword}",
+              "domain": "${var.vraDomain}"
+            }
+      task-generate-random-name:
+        type: CI
+        input:
+          steps:
+          - '# Read id Tag'
+          - export randomString=$(LC_ALL=C tr -dc a-z0-9 </dev/urandom | head -c 10)
+          - ''
+          - export tkgsName=tkgs-$randomString
+          - ''
+          - export namespaceName=namespace-$randomString
+          export:
+          - randomString
+          - tkgsName
+          - namespaceName
+          artifacts: [
+            ]
+          process: [
+            ]
+notifications:
+  email:
+  - endpoint: Codestream-Default-Email
+    body: |-
+      <html>
+
+      <body>
+
+      <p class=MsoNormal><b><span style='font-size:14.0pt'>Cluster Information:<o:p></o:p></span></b></p>
+
+      <p class=MsoNormal><span style='font-size:14.0pt'>Cluster Service Account: dev-admin<o:p></o:p></span></p>
+
+      <p class=MsoNormal><span style='font-size:14.0pt'>Cluster Address: ${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.APISERVER}<o:p></o:p></span></p>
+
+      <p class=MsoNormal><span style='font-size:14.0pt'>Cluster Token: ${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.TOKEN}<o:p></o:p></span></p>
+
+      <p class=MsoNormal><span style='font-size:14.0pt'>Cluster Fingerprint: ${stage-Integration-to-vRA.task-collect-k8s-cluster-information.output.exports.FINGERPRINT}<o:p></o:p></span></p>
+
+      </body>
+
+      </html>
+    event: SUCCESS
+    subject: TKGs Cluster Deployment Complete
+    to:
+    - ${requestBy}
