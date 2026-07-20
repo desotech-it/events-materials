@@ -1,0 +1,36 @@
+version: "3.7"
+
+services:
+  rng:
+    image: r.deso.tech/dockerhub/training/dockercoins-rng:1.0
+    networks:
+    - dockercoins
+    ports:
+    - "8001:80"
+
+  hasher:
+    image: r.deso.tech/dockerhub/training/dockercoins-hasher:1.0
+    networks:
+    - dockercoins
+    ports:
+    - "8002:80"
+
+  webui:
+    image: r.deso.tech/dockerhub/training/dockercoins-webui:1.0
+    networks:
+    - dockercoins
+    ports:
+    - "8000:80"
+
+  redis:
+    image: r.deso.tech/dockerhub/library/redis
+    networks:
+    - dockercoins
+
+  worker:
+    image: r.deso.tech/dockerhub/training/dockercoins-worker:1.0
+    networks:
+    - dockercoins
+
+networks:
+    dockercoins:
