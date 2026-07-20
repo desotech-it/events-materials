@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <link rel="icon" type="image/x-icon" href="https://avatars.githubusercontent.com/u/52959850?s=280&v=4">
+  <link href="/css/bootstrap.min.css" rel="stylesheet">
+  <title>
+    <%= title %>
+  </title>
+</head>
+<style>
+  html,
+  body,
+  footer {
+    font-family: monaco, Consolas, Lucida Console, monospace;
+    font-weight: bold;
+    background-color: rgb(6, 6, 6);
+    text-align: center;
+    text-transform: uppercase;
+    color: rgb(255, 255, 255);
+    background-image: url(https://images.wallpapersden.com/image/wl-topography-abstract-black-texture_64113.jpg);
+  }
+
+  #highscore-table {
+    width: 50%;
+  }
+
+  #highscore-table tr:hover {
+    background-color: #7c7c7c50;
+    ;
+  }
+
+  #highscore-table th,
+  td {
+    padding: 8px;
+    text-align: center;
+    border-bottom: 1px solid rgba(207, 207, 207, 0.885);
+  }
+
+  #highscore-table th {
+    color: #F2D44A;
+  }
+</style>
+
+<body>
+
+  <div class="container">
+    <header class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
+      <a class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-body-emphasis text-decoration-none">
+        <span class="fs-4" style="color: #F2D44A;"> Leaderboard Pacman</span>
+      </a>
+
+      <ul class="nav nav-pills">
+        <li class="nav-item"><a href="https://www.deso.tech/" class="nav-link link-underline-warning"
+            aria-current="page" style="color: #008B82;">Home</a></li>
+        <li class="nav-item"><a href="https://www.deso.tech/formazione/" class="nav-link link-underline-warning"
+            style="color: #008B82;">Courses</a></li>
+        <li class="nav-item"><a href="https://www.deso.tech/blog/" class="nav-link link-underline-warning"
+            style="color: #008B82;">Blogs</a></li>
+        <li class="nav-item"><a href="https://www.deso.tech/chi-siamo/" class="nav-link link-underline-warning"
+            style="color: #008B82;">About</a></li>
+      </ul>
+    </header>
+  </div>
+
+
+  <div class="d-flex flex-wrap justify-content-center" id="root">
+
+  </div>
+  <script defer src="/javascripts/index.js"></script>
+
+  <div class="container justify-content-sm-center w-75 p-3 mx-auto p-2 align-items-center">
+    <footer class="row row-cols-1 row-cols-sm-2 row-cols-md-5 py-5 my-5 border-top">
+      <div class="col mb-3">
+        <a class="img-fluid d-flex align-items-center mb-3 link-body-emphasis text-decoration-none">
+          <img src="https://avatars.githubusercontent.com/u/52959850?s=280&v=4" height="80%" width="80%">
+        </a>
+      </div>
+
+      <div class="col mb-3">
+        <a class="img-fluid d-flex align-items-center mt-5 mb-4">
+          <img src="https://www.lazioinnova.it/innovaventure/app/uploads/2022/01/Codemotion_logo.png" height="120%"
+            width="120%">
+        </a>
+      </div>
+
+      <div class="d-sm-none d-md-block">
+      </div>
+
+      <div class="col mb-3">
+        <h5 style="color: #F2D44A;">Quick Links</h5>
+        <ul class="nav flex-column">
+          <li class="nav-item mb-2"><a href="https://www.deso.tech/chi-siamo/" class="nav-link p-0"
+              style="color: #e1e1e1;">> About</a></li>
+          <li class="nav-item mb-2"><a href="https://www.deso.tech/chi-siamo/le-nostre-certificazioni/"
+              class="nav-link p-0" style="color: #e1e1e1;">> Certifications</a></li>
+          <li class="nav-item mb-2"><a href="https://www.deso.tech/consulenza/" class="nav-link p-0"
+              style="color: #e1e1e1;">> Consulting</a></li>
+          <li class="nav-item mb-2"><a href="https://www.deso.tech/formazione/" class="nav-link p-0"
+              style="color: #e1e1e1;">> Training</a></li>
+          <li class="nav-item mb-2"><a href="https://www.deso.tech/blog/" class="nav-link p-0" style="color: #e1e1e1;">>
+              Blog</a></li>
+        </ul>
+      </div>
+
+      <div class="col mb-3">
+        <h5 style="color: #F2D44A;">Company</h5>
+        <ul class="nav flex-column">
+          <li>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+              class="bi bi-geo-alt-fill" viewBox="0 0 16 16">
+              <path d="M8 16s6-5.686 6-10A6 6 0 0 0 2 6c0 4.314 6 10 6 10zm0-7a3 3 0 1 1 0-6 3 3 0 0 1 0 6z" />
+            </svg>
+            <a>Altamura - Roma</a>
+          </li>
+
+          <li>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+              class="bi bi-envelope-fill" viewBox="0 0 16 16">
+              <path
+                d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555ZM0 4.697v7.104l5.803-3.558L0 4.697ZM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757Zm3.436-.586L16 11.801V4.697l-5.803 3.546Z" />
+            </svg>
+            <a>info@desotech.it</a>
+          </li>
+
+          <li>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+              class="bi bi-telephone-fill" viewBox="0 0 16 16">
+              <path fill-rule="evenodd"
+                d="M1.885.511a1.745 1.745 0 0 1 2.61.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.678.678 0 0 0 .178.643l2.457 2.457a.678.678 0 0 0 .644.178l2.189-.547a1.745 1.745 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.634 18.634 0 0 1-7.01-4.42 18.634 18.634 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877L1.885.511z" />
+            </svg>
+            <A>+39 080 310 5224</a>
+          </li>
+        </ul>
+      </div>
+    </footer>
+  </div>
+  <script src="/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
